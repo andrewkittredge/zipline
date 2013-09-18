@@ -19,7 +19,8 @@ from datetime import datetime
 import pytz
 
 from zipline.algorithm import TradingAlgorithm
-from zipline.utils.factory import load_from_yahoo
+
+from financial_fundamentals import sqlite_price_cache
 
 
 class BuyApple(TradingAlgorithm):  # inherit from TradingAlgorithm
@@ -33,11 +34,11 @@ class BuyApple(TradingAlgorithm):  # inherit from TradingAlgorithm
 if __name__ == '__main__':
     start = datetime(2008, 1, 1, 0, 0, 0, 0, pytz.utc)
     end = datetime(2010, 1, 1, 0, 0, 0, 0, pytz.utc)
-    data = load_from_yahoo(stocks=['AAPL'], indexes={}, start=start,
-                           end=end)
+    data = sqlite_price_cache().load_from_cache(stocks=['AAPL'], indexes={}, 
+                                                start=start, end=end)
     simple_algo = BuyApple()
     results = simple_algo.run(data)
-
+    
     ax1 = plt.subplot(211)
     results.portfolio_value.plot(ax=ax1)
     ax2 = plt.subplot(212, sharex=ax1)

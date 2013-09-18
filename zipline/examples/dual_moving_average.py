@@ -20,10 +20,10 @@ import pandas as pd
 from zipline.algorithm import TradingAlgorithm
 import zipline.finance.trading as trading
 from zipline.transforms import MovingAverage
-from zipline.utils.factory import load_from_yahoo
 
 from datetime import datetime
 import pytz
+from financial_fundamentals import sqlite_price_cache
 
 
 class DualMovingAverage(TradingAlgorithm):
@@ -70,8 +70,8 @@ class DualMovingAverage(TradingAlgorithm):
 if __name__ == '__main__':
     start = datetime(1990, 1, 1, 0, 0, 0, 0, pytz.utc)
     end = datetime(1991, 1, 1, 0, 0, 0, 0, pytz.utc)
-    data = load_from_yahoo(stocks=['AAPL'], indexes={}, start=start,
-                           end=end)
+    data = sqlite_price_cache().load_from_cache(stocks=['AAPL'], indexes={}, 
+                                                start=start, end=end)
 
     dma = DualMovingAverage()
     results = dma.run(data)

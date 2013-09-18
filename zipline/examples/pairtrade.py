@@ -22,7 +22,8 @@ import pytz
 
 from zipline.algorithm import TradingAlgorithm
 from zipline.transforms import batch_transform
-from zipline.utils.factory import load_from_yahoo
+
+from financial_fundamentals import sqlite_price_cache
 
 
 @batch_transform
@@ -115,8 +116,8 @@ class Pairtrade(TradingAlgorithm):
 if __name__ == '__main__':
     start = datetime(2000, 1, 1, 0, 0, 0, 0, pytz.utc)
     end = datetime(2002, 1, 1, 0, 0, 0, 0, pytz.utc)
-    data = load_from_yahoo(stocks=['PEP', 'KO'], indexes={},
-                           start=start, end=end)
+    data = sqlite_price_cache.load_from_cache(stocks=['PEP', 'KO'], indexes={},
+                                              start=start, end=end)
 
     pairtrade = Pairtrade()
     results = pairtrade.run(data)

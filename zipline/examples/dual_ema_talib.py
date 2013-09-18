@@ -17,13 +17,14 @@
 import matplotlib.pyplot as plt
 
 from zipline.algorithm import TradingAlgorithm
-from zipline.utils.factory import load_from_yahoo
+
 
 # Import exponential moving average from talib wrapper
 from zipline.transforms.ta import EMA
 
 from datetime import datetime
 import pytz
+from financial_fundamentals import sqlite_price_cache
 
 
 class DualEMATaLib(TradingAlgorithm):
@@ -71,19 +72,19 @@ class DualEMATaLib(TradingAlgorithm):
 if __name__ == '__main__':
     start = datetime(1990, 1, 1, 0, 0, 0, 0, pytz.utc)
     end = datetime(1991, 1, 1, 0, 0, 0, 0, pytz.utc)
-    data = load_from_yahoo(stocks=['AAPL'], indexes={}, start=start,
-                           end=end)
-
+    data = sqlite_price_cache().load_from_cache(stocks=['AAPL'], indexes={}, 
+                                                start=start, end=end)
+    
     dma = DualEMATaLib()
     results = dma.run(data).dropna()
-
+    
     fig = plt.figure()
     ax1 = fig.add_subplot(211, ylabel='portfolio value')
     results.portfolio_value.plot(ax=ax1)
-
+    
     ax2 = fig.add_subplot(212)
     results[['AAPL', 'short_ema', 'long_ema']].plot(ax=ax2)
-
+    
     ax2.plot(results.ix[results.buy].index, results.short_ema[results.buy],
              '^', markersize=10, color='m')
     ax2.plot(results.ix[results.sell].index, results.short_ema[results.sell],

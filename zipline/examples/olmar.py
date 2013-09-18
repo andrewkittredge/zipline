@@ -9,6 +9,8 @@ from zipline.transforms import MovingAverage
 from zipline.utils.factory import load_from_yahoo
 from zipline.finance import commission
 
+from financial_fundamentals import sqlite_price_cache
+
 zipline_logging = logbook.NestedSetup([
     logbook.NullHandler(level=logbook.DEBUG, bubble=True),
     logbook.StreamHandler(sys.stdout, level=logbook.INFO),
@@ -155,8 +157,8 @@ if __name__ == '__main__':
     import pylab as pl
     start = datetime(2004, 1, 1, 0, 0, 0, 0, pytz.utc)
     end = datetime(2008, 1, 1, 0, 0, 0, 0, pytz.utc)
-    data = load_from_yahoo(stocks=STOCKS, indexes={}, start=start,
-                           end=end)
+    data = sqlite_price_cache().load_from_cache(stocks=STOCKS, indexes={}, 
+                                                start=start, end=end)
     data = data.dropna()
     olmar = OLMAR()
     results = olmar.run(data)
