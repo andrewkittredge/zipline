@@ -145,23 +145,24 @@ class TestEventsThroughRisk(unittest.TestCase):
         #       at least be an early warning against changes.
         expected_sharpe = {
             first_date: np.nan,
-            second_date: -1.630920,
-            third_date: -1.016842,
+            second_date: -31.56903265,
+            third_date: -11.459888981,
         }
 
         for bar in gen:
-            current_dt = algo.get_datetime()
+            current_dt = algo.datetime
             crm = algo.perf_tracker.cumulative_risk_metrics
 
             np.testing.assert_almost_equal(
+                crm.algorithm_returns[current_dt],
                 expected_algorithm_returns[current_dt],
-                crm.algorithm_returns[-1],
                 decimal=6)
 
             np.testing.assert_almost_equal(
+                crm.metrics.sharpe[current_dt],
                 expected_sharpe[current_dt],
-                crm.sharpe[-1],
-                decimal=6)
+                decimal=6,
+                err_msg="Mismatch at %s" % (current_dt,))
 
     def test_minute_buy_and_hold(self):
         with trading.TradingEnvironment():
@@ -304,8 +305,9 @@ class TestEventsThroughRisk(unittest.TestCase):
             self.assertEqual(1, len(algo.portfolio.positions), "There should "
                              "be one position after the first day.")
 
-            self.assertTrue(
-                np.isnan(crm.algorithm_volatility[-1]),
+            self.assertEquals(
+                0,
+                crm.metrics.algorithm_volatility[algo.datetime.date()],
                 "On the first day algorithm volatility does not exist.")
 
             second_msg = gen.next()
