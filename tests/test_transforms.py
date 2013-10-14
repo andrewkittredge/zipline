@@ -396,3 +396,9 @@ class TestTALIB(TestCase):
         # Requires supplying minute instead of day data to the unit test.
         # When adding test data, should add more minute events than the
         # timeperiod to ensure that lookback is behaving properly.
+
+
+if __name__ == '__main__':
+    import unittest
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestTALIB)
+    unittest.TextTestRunner(verbosity=2).run(suite)
