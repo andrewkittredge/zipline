@@ -49,7 +49,7 @@ def get_sample_func(item):
         return 'last'
 
 
-def downsample_panel(minute_rp, daily_rp, dt):
+def downsample_panel(minute_rp, daily_rp, mkt_close):
     """
     @minute_rp is a rolling panel, which should have minutely rows
     @daily_rp is a rolling panel, which should have daily rows
@@ -63,13 +63,27 @@ def downsample_panel(minute_rp, daily_rp, dt):
     cur_panel = minute_rp.get_current()
     sids = minute_rp.minor_axis
     day_frame = pd.DataFrame(columns=sids, index=cur_panel.items)
+    dt1 = trading.environment.normalize_date(mkt_close)
+    dt2 = trading.environment.next_trading_day(mkt_close)
+    by_close = functools.partial(get_date, mkt_close, dt1, dt2)
     for item in minute_rp.items:
         frame = cur_panel[item]
         func = get_sample_func(item)
-        dframe = frame.groupby(lambda d: d.date()).resample('1d', how=func)
+        # group by trading day, using the market close of the current
+        # day. If events occurred after the last close (yesterday) but
+        # before today's close, group them into today.
+        dframe = frame.groupby(lambda d: by_close(d)).agg(func)
         for stock in sids:
-            day_frame[stock][item] = dframe[stock][dframe.index[-1][0]]
-    daily_rp.add_frame(dt, day_frame)
+            day_frame[stock][item] = dframe[stock].ix[dt1]
+    # store the frame at midnight instead of the close
+    daily_rp.add_frame(dt1, day_frame)
+
+
+def get_date(mkt_close, d1, d2, d):
+    if d > mkt_close:
+        return d2
+    else:
+        return d1
 
 
 class BatchTransform(object):
@@ -263,27 +277,40 @@ class BatchTransform(object):
         else:
             sids = self.static_sids
 
+        # the panel sent to the transform code will have
+        # columns masked with this set of sids. This is how
+        # we guarantee that all (and only) the sids sent to the
+        # algorithm's handle_data and passed to the batch
+        # transform. See the get_data method to see it applied.
+        # N.B. that the underlying panel grows monotonically
+        # if the set of sids changes over time.
+        self.latest_sids = sids
         # Create rolling panel if not existant
         if self.rolling_panel is None:
             self._init_panels(sids)
-
-        # update trading day counters
-        _, mkt_close = trading.environment.get_open_and_close(event.dt)
-        if self.bars == 'daily':
-            # Daily bars have their dt set to midnight.
-            mkt_close = mkt_close.replace(hour=0, minute=0, second=0)
-        if event.dt >= mkt_close:
-            if self.downsample:
-                downsample_panel(self.rolling_panel,
-                                 self.daily_rolling_panel,
-                                 mkt_close)
-            self.trading_days_total += 1
 
         # Store event in rolling frame
         self.rolling_panel.add_frame(event.dt,
                                      pd.DataFrame(event.data,
                                                   index=self.field_names,
                                                   columns=sids))
+
+        # update trading day counters
+        # we may get events from non-trading sources which occurr on
+        # non-trading days. The book-keeping for market close and
+        # trading day counting should only consider trading days.
+        if trading.environment.is_trading_day(event.dt):
+            _, mkt_close = trading.environment.get_open_and_close(event.dt)
+            if self.bars == 'daily':
+                # Daily bars have their dt set to midnight.
+                mkt_close = trading.environment.normalize_date(mkt_close)
+            if event.dt == mkt_close:
+                if self.downsample:
+                    downsample_panel(self.rolling_panel,
+                                     self.daily_rolling_panel,
+                                     mkt_close
+                                     )
+                self.trading_days_total += 1
 
         self.last_dt = event.dt
 
@@ -359,6 +386,8 @@ class BatchTransform(object):
                             supplemental_for_dt.combine_first(
                                 data[item].ix[dt])
 
+        # screen out sids no longer in the multiverse
+        data = data.ix[:, :, self.latest_sids]
         if self.clean_nans:
             # Fills in gaps of missing data during transform
             # of multiple stocks. E.g. we may be missing
